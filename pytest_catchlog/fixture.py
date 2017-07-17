@@ -3,6 +3,7 @@ from __future__ import absolute_import, division, print_function
 
 import functools
 import logging
+import re
 
 import pytest
 import py
@@ -67,6 +68,24 @@ class LogCaptureFixture(object):
 
         obj = logger and logging.getLogger(logger) or self.handler
         return logging_at_level(level, obj)
+
+    def grep(self, regex, level=None, name=None):
+        """Find log entries matching given regex, level, and logger name.
+
+        regex: regular expression to look for (as a string or re.compile()'d).
+        level: only consider this level; None means all levels.
+        name: only consider the logger with this name; None means all loggers.
+
+        Returns a list of log records that match the conditions.
+        """
+        predicates = [lambda record: re.search(regex, record.getMessage())]
+        if level:
+            predicates.append(lambda record: record.levelno == level)
+        if name:
+            predicates.append(lambda record: record.name == name)
+        # all() short-circuits, so the first failed predicate stops the check.
+        return [record for record in self.records
+                if all(predicate(record) for predicate in predicates)]
 
 
 class CallablePropertyMixin(object):
